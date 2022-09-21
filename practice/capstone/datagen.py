@@ -106,13 +106,8 @@ if num_of_saving_files > 1:
             for key in data_schema.keys():
                 print(data_schema[key])
                 # TODO REFACTOR IT - check first right side, then check every possibility of the left sides
-                if data_schema[key][:9] == "timestamp":
-                    if len(data_schema) > 10:
-                        # TODO create logging warning that value was provided for timestamp, but has no effect
-                        pass
-                    current_line[key] = time.time()
-                elif data_schema[key][:3] == "str":
-                    pass
+                if ":" in data_schema[key]:
+                    left, right = data_schema[key].split(":")
 
 
 
