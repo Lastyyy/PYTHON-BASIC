@@ -112,7 +112,7 @@ if num_of_saving_files > 1:
                         pass
                     current_line[key] = time.time()
                 elif data_schema[key][:3] == "str":
-
+                    pass
 
 
 
