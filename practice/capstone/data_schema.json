@@ -1,1 +1,2 @@
-{"date":"timestamp:", "name": "str:rand", "type":"str:['client', 'partner', 'government']", "age": "int:rand(1, 90)"}
+{"str_rand": "str:rand", "timestamp": "timestamp", "str_list": "str:['a', 'b']", "int_list": "int:[0, 1]",
+  "int_rand_range": "int:rand(0, 99)", "str_val": "str:a1b2", "int_val": "int:123", "str_empty": "str:", "int_empty": "int:"}
