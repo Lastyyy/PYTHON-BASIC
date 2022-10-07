@@ -25,28 +25,37 @@ def parsing():
     logging.info("Parsing the arguments")
 
     try:
+        config = configparser.ConfigParser()
+        config.read("default.ini")
         parser.add_argument("path_to_save_files", default=config['def_val']['path_to_save_files'], type=str, nargs="?",
-                            help='Input a path to the directory where you want your files with data to be saved. '
-                                 'Path can be both relational or absolute. Default value = "./output"')
+                            help=f"Input a path to the directory where you want your files with data to be saved. "
+                                 f"Path can be both relational or absolute. "
+                                 f"Default value = \"{config['def_val']['path_to_save_files']}\"")
         parser.add_argument("--files_count", default=int(config['def_val']['files_count']), type=int,
-                            help='Number of files that you want to be created. If 0, the output will be printed to the '
-                                 'console. Default value = 0')
+                            help=f"Number of files that you want to be created. If 0, the output will be printed to the"
+                                 f" console. Default value = {config['def_val']['files_count']}")
         parser.add_argument("--file_name", default=config['def_val']['file_name'], type=str,
-                            help='Core of the name of the files that will be created. Default value = "data"')
+                            help=f"Core of the name of the files that will be created. "
+                                 f"Default value = \"{config['def_val']['file_name']}\"")
         parser.add_argument("--suffix", default=config['def_val']['suffix'], type=str,
-                            choices=['count', 'random', 'uuid'], help='Suffix added to file_name to files created. '
-                                                                      'Default value = "count"')
+                            choices=['count', 'random', 'uuid'], help=f"Suffix added to file_name to files created. "
+                                                                      f"Default value = "
+                                                                      f"\"{config['def_val']['suffix']}\"."
+                                                                      f" All options: count, random, uuid")
         parser.add_argument("--data_schema", default=config['def_val']['data_schema'], type=str,
-                            help='Json schema, based on which the data will be created. Schema can be provided by '
-                                 'command line or as a path to json file. Default value = "./data_schema.json"')
+                            help=f"Json schema, based on which the data will be created. Schema can be provided by "
+                                 f"command line or as a path to json file. "
+                                 f"Default value = \"{config['def_val']['data_schema']}\"")
         parser.add_argument("--data_lines", default=int(config['def_val']['data_lines']), type=int,
-                            help='Number of lines with data in each file. Default value = 5')
-        # TODO change to store_true
+                            help=f"Number of lines with data in each file. "
+                                 f"Default value = {int(config['def_val']['data_lines'])}")
         parser.add_argument("--clear_path", action='store_true',
                             help='If used, all jsonl files in the directory specified by path_to_save_files, '
                                  'containing file_name in their name will be deleted before creating new ones.')
         parser.add_argument("--multiprocessing", default=int(config['def_val']['multiprocessing']), type=int,
-                            help='Number of processes used to create files. Default value = 1')
+                            help=f"Number of processes used to create files. "
+                                 f"Default value = {int(config['def_val']['multiprocessing'])}")
+
     except ValueError:
         logging.error('Incorrect type of default value given in the default.ini file. '
                       'For correct types of values for every option check --help')
