@@ -326,9 +326,7 @@ def main():
     except argparse.ArgumentError as arg_err:
         logging.error(arg_err.message.capitalize())
         exit(1)
-    except (exc.InvalidDefaultConfiguration, exc.PathIsFile, exc.ValueNegative, exc.NonexistentSchemaFile,
-            exc.IncorrectValue, exc.WrongTypeRandRange, exc.WrongListOfChoices, exc.IncorrectType,
-            exc.IncorrectSchema, exc.ForbiddenCharInFileName):
+    except exc.DatagenBaseException:
         exit(1)
 
 
