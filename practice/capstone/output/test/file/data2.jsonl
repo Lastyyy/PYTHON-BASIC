@@ -1,0 +1,6 @@
+{"str_rand": "b752fede-ecde-4717-8d7f-90f8bf593a55", "timestamp": 1665143309.9068859, "str_list": "a", "int_list": 0, "int_rand_range": 8, "str_val": "a1b2", "int_val": 123, "str_empty": "", "int_empty": null}
+{"str_rand": "f99cab5d-79c9-49ce-9645-fca6acb47152", "timestamp": 1665143309.9083352, "str_list": "b", "int_list": 1, "int_rand_range": 43, "str_val": "a1b2", "int_val": 123, "str_empty": "", "int_empty": null}
+{"str_rand": "2fe7d2ab-f599-4566-899b-040e037d4856", "timestamp": 1665143309.9084558, "str_list": "b", "int_list": 1, "int_rand_range": 19, "str_val": "a1b2", "int_val": 123, "str_empty": "", "int_empty": null}
+{"str_rand": "9c6843af-cf99-448d-9054-b76120465908", "timestamp": 1665143309.908538, "str_list": "a", "int_list": 0, "int_rand_range": 20, "str_val": "a1b2", "int_val": 123, "str_empty": "", "int_empty": null}
+{"str_rand": "7b973eb3-4dc2-4b1a-bb8f-528fbae094ec", "timestamp": 1665143309.908778, "str_list": "b", "int_list": 1, "int_rand_range": 21, "str_val": "a1b2", "int_val": 123, "str_empty": "", "int_empty": null}
+""
