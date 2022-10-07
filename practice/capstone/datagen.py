@@ -12,6 +12,7 @@ import time
 import uuid
 import logging
 from functools import partial
+import datagen_exceptions as exc
 
 
 def parsing():
@@ -57,14 +58,9 @@ def parsing():
                                  f"Default value = {int(config['def_val']['multiprocessing'])}")
 
     except ValueError:
-        logging.error('Incorrect type of default value given in the default.ini file. '
-                      'For correct types of values for every option check --help')
-        exit(1)
-    try:
-        return parser.parse_args()
-    except argparse.ArgumentError as err:
-        logging.error(err.message.capitalize())
-        exit(1)
+        raise exc.InvalidDefaultConfiguration()
+
+    return parser.parse_args()
 
 
 def path_save_files_arg(args: argparse.Namespace):
@@ -74,8 +70,7 @@ def path_save_files_arg(args: argparse.Namespace):
         if os.path.isdir(path):
             logging.info(f"Directory exists: {path}")
         else:
-            logging.error('Given path is a file, not a directory')
-            exit(1)
+            raise exc.PathIsFile(path)
     else:
         os.makedirs(path, exist_ok=True)
         logging.info(f"Created directory: {path}")
@@ -86,8 +81,7 @@ def path_save_files_arg(args: argparse.Namespace):
 def files_count_arg(args: argparse.Namespace):
     logging.info("Checking the number of files to be created")
     if args.__dict__["files_count"] < 0:
-        logging.error("Number of files to create can't be negative")
-        exit(1)
+        raise exc.ValueNegative("Number of files to be created")
     else:
         return int(args.__dict__["files_count"])
 
@@ -98,24 +92,19 @@ def data_schema_arg(args: argparse.Namespace):
 
     if data_schema[-5:] == ".json":
         if not os.path.exists(data_schema) or not os.path.isfile(data_schema):
-            logging.error(f"There is no file at {data_schema}")
-            exit(1)
+            raise exc.NonexistentSchemaFile(data_schema)
         file = open(data_schema, "r")
         try:
             data_schema = json.load(file)
-        except:
-            logging.error("Given data schema is incorrect")
-            exit(1)
+        except SyntaxError as e:
+            raise exc.IncorrectSchema(e.msg.capitalize())
 
     else:
         try:
             logging.info(str(data_schema))
-            data_schema = ast.literal_eval(data_schema)
-            if type(data_schema) is not dict:
-                raise TypeError
-        except SyntaxError as ex:
-            logging.error("Given data schema is incorrect: " + ex.msg.capitalize())
-            exit(1)
+            data_schema = json.loads(data_schema)
+        except json.decoder.JSONDecodeError as e:
+            raise exc.IncorrectSchema(e.msg.capitalize())
 
     logging.info("Given data schema is correct")
     return data_schema
@@ -196,11 +185,16 @@ def check_warnings(data_schema, warnings):
 
 def create_data_line(data_schema):
     current_line = {}
+    # checking every key: value from the data_schema
     for key in data_schema.keys():
+        # checking if the type of the value is correctly given, for example "int:rand"
         if ":" in data_schema[key]:
+            # splitting the value from "int:rand" to left = int, right = rand
             left, right = data_schema[key].split(":")
 
+            # type given without a value case
             if right == "":
+                # timestamp without a value case
                 if left == "timestamp":
                     current_line[key] = time.time()
                 elif left == "str":
@@ -208,45 +202,49 @@ def create_data_line(data_schema):
                 elif left == "int" or left == "float":
                     current_line[key] = None
 
+            # timestamp with a value case - value is ignored
+            # the warning will be written later in the check_warnings function
             elif left == "timestamp":
                 current_line[key] = time.time()
 
+            # value = rand(x, y) case, only working when left == int
             elif right[:5] == "rand(":
                 if left != "int":
-                    logging.error("'rand' can be used only with int")
-                    exit(1)
+                    raise exc.WrongTypeRandRange
                 values = right[5: -1]
                 left_val, right_val = values.split(",")
                 left_val = int(left_val.strip())
                 right_val = int(right_val.strip())
                 current_line[key] = random.randint(min(left_val, right_val), max(left_val, right_val))
 
+            # other cases of 'rand' values
             elif right == "rand":
                 if left == "str":
                     current_line[key] = str(uuid.uuid4())
                 elif left == "int":
                     current_line[key] = random.randint(0, 10000)
 
+            # list with choices case
             elif right[0] == "[" and right[-1] == "]":
                 try:
                     choices = ast.literal_eval(right)
                     current_line[key] = random.choice(choices)
                 except SyntaxError:
-                    logging.error(f"List of values for '{key}' is incorrect")
-                    exit(1)
+                    raise exc.WrongListOfChoices(key)
 
-            # float values possible too
+            # plain values - float values possible too
             elif left != "str":
                 try:
                     right_val = ast.literal_eval(right)
                     if type(right_val).__name__ == left:
                         current_line[key] = right_val
+                    else:
+                        raise ValueError
                 except (ValueError, SyntaxError):
                     if left != 'int' and left != 'float':
-                        logging.error(f"Incorrect type given: {left}")
+                        raise exc.IncorrectType(left)
                     else:
-                        logging.error(f"Incorrect value for a given type, expected {left}")
-                    exit(1)
+                        raise exc.IncorrectValue(right, left)
 
             else:
                 current_line[key] = right
@@ -280,54 +278,58 @@ def create_files(files_to_create, path_to_save_files, data_schema, data_lines, n
 
 def main():
     logging.basicConfig(level=logging.INFO)
-    parsed_args = parsing()
 
-    warnings = {"timestamp_with_value_warning": [False], "data_without_type_warning": [False]}
+    try:
+        parsed_args = parsing()
 
-    num_of_saving_files = files_count_arg(parsed_args)
+        warnings = {"timestamp_with_value_warning": [False], "data_without_type_warning": [False]}
 
-    # if num_of_saving_files == 0 then do not check the path and do not try to clear it
-    if num_of_saving_files > 0:
-        path_to_save_files = path_save_files_arg(parsed_args)
-        clear_path_arg(parsed_args, path_to_save_files)
+        num_of_saving_files = files_count_arg(parsed_args)
 
-    data_schema = data_schema_arg(parsed_args)
-    num_of_processes = multiprocessing_arg(parsed_args)
+        # if num_of_saving_files == 0 then do not check the path and do not try to clear it
+        if num_of_saving_files > 0:
+            path_to_save_files = path_save_files_arg(parsed_args)
+            clear_path_arg(parsed_args, path_to_save_files)
 
-    file_name = parsed_args.__dict__["file_name"]
-    if "/" in file_name:
-        logging.error("'/' character is forbidden in file names in linux systems")
+        data_schema = data_schema_arg(parsed_args)
+        num_of_processes = multiprocessing_arg(parsed_args)
+
+        file_name = parsed_args.__dict__["file_name"]
+        if "/" in file_name:
+            raise exc.ForbiddenCharInFileName()
+
+        suffix = parsed_args.__dict__["suffix"]
+
+        data_lines = parsed_args.__dict__["data_lines"]
+        if data_lines < 1:
+            raise exc.ValueNegative("Data lines value")
+
+        if num_of_saving_files == 0:
+            logging.info("Creating the data and printing it out...")
+            for _ in range(data_lines):
+                print(create_data_line(data_schema))
+            logging.info("Printing out data completed")
+        else:
+            files_to_create = create_file_names(num_of_saving_files, file_name, suffix)
+            logging.info("Creating data and putting it to the files is starting... ")
+            create_files(files_to_create, path_to_save_files, data_schema, data_lines, num_of_processes)
+
+            warnings = check_warnings(data_schema, warnings)
+            if warnings["timestamp_with_value_warning"][0]:
+                logging.warning(f"Values for keys: {warnings['timestamp_with_value_warning'][1:]} were ignored, "
+                                f"because timestamp type doesn't take any value!")
+            if warnings["data_without_type_warning"][0]:
+                logging.warning(f"Keys: {warnings['data_without_type_warning'][1:]} were ignored, "
+                                f"because the types for their values weren't given!")
+
+            logging.info("Creating files and filling them with data finished")
+    except argparse.ArgumentError as arg_err:
+        logging.error(arg_err.message.capitalize())
         exit(1)
-
-    suffix = parsed_args.__dict__["suffix"]
-    if suffix not in ["count", "random", "uuid"]:
-        logging.error("Suffix option must be 'count', 'random' or 'uuid'")
+    except (exc.InvalidDefaultConfiguration, exc.PathIsFile, exc.ValueNegative, exc.NonexistentSchemaFile,
+            exc.IncorrectValue, exc.WrongTypeRandRange, exc.WrongListOfChoices, exc.IncorrectType,
+            exc.IncorrectSchema, exc.ForbiddenCharInFileName):
         exit(1)
-
-    data_lines = parsed_args.__dict__["data_lines"]
-    if data_lines < 1:
-        logging.error("Data lines option must be more than 0")
-        exit(1)
-
-    if num_of_saving_files == 0:
-        logging.info("Creating the data and printing it out...")
-        for _ in range(data_lines):
-            print(create_data_line(data_schema))
-        logging.info("Printing out data completed")
-    else:
-        files_to_create = create_file_names(num_of_saving_files, file_name, suffix)
-        logging.info("Creating data and putting it to the files is starting... ")
-        create_files(files_to_create, path_to_save_files, data_schema, data_lines, num_of_processes)
-
-        warnings = check_warnings(data_schema, warnings)
-        if warnings["timestamp_with_value_warning"][0]:
-            logging.warning(f"Values for keys: {warnings['timestamp_with_value_warning'][1:]} were ignored, "
-                            f"because timestamp type doesn't take any value!")
-        if warnings["data_without_type_warning"][0]:
-            logging.warning(f"Keys: {warnings['data_without_type_warning'][1:]} were ignored, "
-                            f"because the types for their values weren't given!")
-
-        logging.info("Creating files and filling them with data finished")
 
 
 if __name__ == '__main__':
